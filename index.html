@@ -3,230 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>深邃宇宙 - 多体运动模拟仿真</title>
-    <!-- Tailwind CSS -->
+    <title>天体物理动力学仿真引擎 v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&family=Orbitron:wght@400;500;700;900&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'scifi-cyan': '#00f0ff',
+                        'scifi-dark': '#070b14',
+                        'scifi-panel': 'rgba(10, 15, 30, 0.75)',
+                    },
+                    fontFamily: {
+                        'orbitron': ['Orbitron', 'sans-serif'],
+                        'mono': ['"JetBrains Mono"', 'monospace'],
+                        'sans': ['"Noto Sans SC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
+        body { margin: 0; overflow: hidden; background-color: #030408; user-select: none; }
+        canvas { display: block; }
+        
+        /* 科幻面板样式 */
+        .tech-panel {
+            background: var(--tw-colors-scifi-panel);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.05), inset 0 0 20px rgba(0, 240, 255, 0.02);
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* 边角装饰 ( HUD 风格 ) */
+        .hud-corner {
+            position: absolute;
+            width: 10px; height: 10px;
+            border-color: #00f0ff;
+        }
+        .corner-tl { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+        .corner-tr { top: -1px; right: -1px; border-top: 2px solid; border-right: 2px solid; }
+        .corner-bl { bottom: -1px; left: -1px; border-bottom: 2px solid; border-left: 2px solid; }
+        .corner-br { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+
+        /* 科幻按钮 */
+        .tech-btn {
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: #a0d8ef;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
             overflow: hidden;
-            background-color: #050505; /* 深邃纯黑底色 */
-            user-select: none;
         }
-        canvas {
-            display: block;
+        .tech-btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: #00f0ff;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
         }
-        /* 自定义滚动条和滑块样式 */
+        .tech-btn.active {
+            background: rgba(0, 240, 255, 0.3);
+            border-color: #00f0ff;
+            color: #fff;
+            box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        /* 警告按钮 */
+        .tech-btn-warn {
+            border-color: rgba(255, 50, 50, 0.3);
+            color: #ff8888;
+        }
+        .tech-btn-warn:hover {
+            background: rgba(255, 50, 50, 0.2);
+            border-color: #ff3232;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.4);
+        }
+
+        /* 科技感滑块 */
         input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
+            -webkit-appearance: none; width: 100%; background: transparent;
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 14px;
-            width: 14px;
-            border-radius: 50%;
-            background: #ffffff;
+            height: 16px; width: 8px;
+            background: #00f0ff;
             cursor: pointer;
-            margin-top: -5px;
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            margin-top: -6px;
+            box-shadow: 0 0 10px #00f0ff;
+            border-radius: 1px;
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
+            width: 100%; height: 4px;
             cursor: pointer;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
+            background: rgba(0, 240, 255, 0.2);
+            border: 1px solid rgba(0, 240, 255, 0.3);
         }
-        /* 玻璃拟态UI样式 */
-        .glass-panel {
-            background: rgba(15, 15, 18, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+
+        /* 扫描线动画 */
+        .scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(to right, transparent, #00f0ff, transparent);
+            opacity: 0.5;
+            animation: scan 3s linear infinite;
         }
-        .btn-glass {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-            color: #e5e7eb;
-        }
-        .btn-glass:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 15px rgba(255,255,255,0.1);
-        }
-        .btn-active {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.4);
-            box-shadow: 0 0 15px rgba(255,255,255,0.2);
-        }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+
+        /* 发光文本 */
+        .text-glow { text-shadow: 0 0 10px rgba(0, 240, 255, 0.6); }
+        .text-glow-red { text-shadow: 0 0 10px rgba(255, 50, 50, 0.6); }
+
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="text-gray-200 h-screen w-screen relative">
+<body class="text-gray-300 font-sans h-screen w-screen relative">
 
     <!-- 主渲染画布 -->
     <canvas id="simCanvas" class="absolute inset-0 w-full h-full cursor-crosshair"></canvas>
 
-    <!-- 顶部标题栏 -->
-    <header class="absolute top-0 left-0 w-full glass-panel px-6 py-3 flex justify-between items-center z-10 pointer-events-none">
-        <div class="flex items-center gap-3">
-            <i class="fa-solid fa-meteor text-xl text-gray-300"></i>
-            <h1 class="text-lg tracking-wider font-semibold text-gray-100">天体引力仿真系统 <span class="text-xs text-gray-400 font-normal ml-2">N-Body Simulation</span></h1>
-        </div>
-        <div class="text-sm text-gray-400 hidden md:block">
-            左键拖拽: 创建天体 | 右键拖拽: 平移 | 滚轮: 缩放
-        </div>
-    </header>
-
-    <!-- 右侧控制面板 -->
-    <aside class="absolute right-4 top-20 w-72 glass-panel rounded-xl p-5 z-10 flex flex-col gap-5">
-        <!-- 播放控制 -->
-        <div class="flex justify-between gap-2">
-            <button id="btnPlay" class="flex-1 btn-glass py-2 rounded-lg text-sm flex items-center justify-center gap-2">
-                <i class="fa-solid fa-pause"></i> 暂停
-            </button>
-            <button id="btnReset" class="flex-1 btn-glass py-2 rounded-lg text-sm flex items-center justify-center gap-2">
-                <i class="fa-solid fa-rotate-left"></i> 重置
-            </button>
-        </div>
-
-        <!-- 参数调节 -->
-        <div class="space-y-4">
-            <div>
-                <div class="flex justify-between text-xs text-gray-400 mb-1">
-                    <span>模拟速度</span>
-                    <span id="valTime">1.0x</span>
+    <!-- 全局 UI 层 (拦截点击穿透) -->
+    <div class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- 顶部：标题栏 (HUD 风格) -->
+        <header class="flex justify-between items-start">
+            <div class="flex items-center gap-4">
+                <!-- 旋转图标 -->
+                <div class="relative w-12 h-12 flex items-center justify-center tech-panel rounded-full">
+                    <i class="fa-solid fa-atom text-scifi-cyan text-2xl animate-spin" style="animation-duration: 4s;"></i>
+                    <div class="absolute inset-0 border border-scifi-cyan/30 rounded-full animate-ping" style="animation-duration: 3s;"></div>
                 </div>
-                <input type="range" id="sliderTime" min="0.1" max="10" step="0.1" value="1">
-            </div>
-            <div>
-                <div class="flex justify-between text-xs text-gray-400 mb-1">
-                    <span>引力常数 (G)</span>
-                    <span id="valG">1.0</span>
+                <div>
+                    <h1 class="font-orbitron text-xl md:text-2xl font-bold text-white tracking-widest text-glow">
+                        天体动力学仿真引擎
+                    </h1>
+                    <div class="font-mono text-xs text-scifi-cyan/80 flex items-center gap-2">
+                        <span class="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        系统在线 // 多体引力物理模拟 v2.0
+                    </div>
                 </div>
-                <input type="range" id="sliderG" min="0.1" max="5" step="0.1" value="1">
             </div>
-        </div>
-
-        <hr class="border-gray-600/30">
-
-        <!-- 显示开关 -->
-        <div class="grid grid-cols-2 gap-2">
-            <button id="btnTrails" class="btn-glass btn-active py-2 rounded-lg text-xs flex items-center justify-center gap-2">
-                <i class="fa-solid fa-route"></i> 轨迹
-            </button>
-            <button id="btnLabels" class="btn-glass py-2 rounded-lg text-xs flex items-center justify-center gap-2">
-                <i class="fa-solid fa-tag"></i> 标签
-            </button>
-        </div>
-
-        <!-- 场景预设 -->
-        <div>
-            <div class="text-xs text-gray-400 mb-2">预设场景</div>
-            <div class="grid grid-cols-2 gap-2">
-                <button class="btn-preset btn-glass py-1.5 rounded-md text-xs" data-preset="solar">简化太阳系</button>
-                <button class="btn-preset btn-glass py-1.5 rounded-md text-xs" data-preset="threeBody">三体系统</button>
-                <button class="btn-preset btn-glass py-1.5 rounded-md text-xs" data-preset="binary">双星系统</button>
-                <button class="btn-preset btn-glass py-1.5 rounded-md text-xs" data-preset="cluster">星团碰撞</button>
+            
+            <div class="hidden md:block font-mono text-xs text-right text-gray-400 bg-scifi-panel p-2 border border-scifi-cyan/20">
+                <div class="text-scifi-cyan mb-1">> 操作说明_</div>
+                <div>左键 + 拖拽 : 生成并注入天体</div>
+                <div>右键 + 拖拽 : 平移空间坐标系</div>
+                <div>鼠标滚轮    : 缩放观测器视野</div>
             </div>
-        </div>
+        </header>
 
-        <hr class="border-gray-600/30">
+        <!-- 中间层：左右分栏 -->
+        <main class="flex-1 flex items-end justify-between relative mt-4">
+            
+            <!-- 左下角：遥测目标数据面板 -->
+            <div id="infoPanel" class="tech-panel relative w-72 p-4 pointer-events-auto hidden opacity-0 transition-all duration-300 transform translate-y-4">
+                <div class="hud-corner corner-tl"></div><div class="hud-corner corner-tr"></div>
+                <div class="hud-corner corner-bl"></div><div class="hud-corner corner-br"></div>
+                <div class="scanline"></div>
+                
+                <div class="flex justify-between items-center border-b border-scifi-cyan/30 pb-2 mb-3">
+                    <span class="font-orbitron text-scifi-cyan text-sm tracking-widest">目标遥测数据</span>
+                    <button id="btnCloseInfo" class="text-gray-500 hover:text-scifi-cyan"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="font-mono text-xs space-y-2 text-gray-400">
+                    <div class="flex justify-between border-b border-gray-800 pb-1 mb-1">
+                        <span>代号 [NAME]</span>
+                        <span id="infoName" class="text-white font-bold">未知天体</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>质量 [MASS]</span>
+                        <span id="infoMass" class="text-white">0.00</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>半径 [RADIUS]</span>
+                        <span id="infoRadius" class="text-white">0.00</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>速度 [VELOCITY]</span>
+                        <span id="infoVel" class="text-scifi-cyan font-bold">0.00</span>
+                    </div>
+                    <div class="w-full bg-gray-800 h-1 mt-1 mb-2">
+                        <div id="velBar" class="bg-scifi-cyan h-full" style="width: 50%;"></div>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>坐标 [COORD]</span>
+                        <span id="infoPos" class="text-white">0, 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>识别码 [UID]</span>
+                        <span id="infoUid" class="text-gray-500">----</span>
+                    </div>
+                </div>
+            </div>
 
-        <!-- 操作按钮 -->
-        <div class="flex flex-col gap-2">
-            <button id="btnAddRandom" class="btn-glass py-2 rounded-lg text-sm flex items-center justify-center gap-2">
-                <i class="fa-solid fa-plus"></i> 随机添加天体
-            </button>
-            <button id="btnClear" class="btn-glass py-2 rounded-lg text-sm text-red-300/80 hover:text-red-300 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-trash"></i> 清空宇宙
-            </button>
-        </div>
-    </aside>
+            <!-- 右下角：指挥台控制面板 -->
+            <aside class="tech-panel relative w-80 p-5 pointer-events-auto flex flex-col gap-5 ml-auto h-[calc(100vh-140px)] max-h-[600px] overflow-y-auto">
+                <div class="hud-corner corner-tl"></div><div class="hud-corner corner-tr"></div>
+                <div class="hud-corner corner-bl"></div><div class="hud-corner corner-br"></div>
+                
+                <!-- 运行状态监控 -->
+                <div class="grid grid-cols-2 gap-2 font-mono text-xs border border-scifi-cyan/20 p-2 bg-black/40">
+                    <div>
+                        <div class="text-gray-500">天体数量</div>
+                        <div id="statCount" class="text-xl text-white text-glow">0</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500">演化纪元</div>
+                        <div id="statTime" class="text-xl text-scifi-cyan text-glow">0.0</div>
+                    </div>
+                    <div class="col-span-2 flex justify-between mt-1 pt-1 border-t border-scifi-cyan/10">
+                        <span class="text-gray-500">引擎帧率 (FPS)</span>
+                        <span id="statFps" class="text-green-400">60.0</span>
+                    </div>
+                </div>
 
-    <!-- 左下角信息面板 (选中天体时显示) -->
-    <div id="infoPanel" class="absolute left-4 bottom-16 w-64 glass-panel rounded-xl p-4 z-10 hidden opacity-0 transition-opacity duration-300 pointer-events-none">
-        <h3 class="text-sm font-semibold text-white border-b border-white/10 pb-2 mb-2 flex items-center justify-between pointer-events-auto">
-            <span>天体数据</span>
-            <button id="btnCloseInfo" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-        </h3>
-        <div class="space-y-1 text-xs text-gray-300">
-            <p>质量 (m): <span id="infoMass" class="text-white float-right">0</span></p>
-            <p>半径 (r): <span id="infoRadius" class="text-white float-right">0</span></p>
-            <p>速度 (v): <span id="infoVel" class="text-white float-right">0</span></p>
-            <p>坐标 (x,y): <span id="infoPos" class="text-white float-right">0, 0</span></p>
-        </div>
+                <!-- 时空控制 -->
+                <div>
+                    <h3 class="font-orbitron text-xs text-scifi-cyan mb-3 tracking-widest border-b border-scifi-cyan/20 pb-1">时间控制 (TIME_CONTROL)</h3>
+                    <div class="flex gap-2 mb-3">
+                        <button id="btnPlay" class="tech-btn flex-1 py-2 text-xs flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-pause"></i> 暂停推演
+                        </button>
+                    </div>
+                    <div class="mb-1 flex justify-between font-mono text-[10px] text-gray-400">
+                        <span>时间扭曲倍率</span>
+                        <span id="valTime" class="text-white">1.0x</span>
+                    </div>
+                    <input type="range" id="sliderTime" min="0.1" max="10" step="0.1" value="1">
+                </div>
+
+                <!-- 物理参数 -->
+                <div>
+                    <h3 class="font-orbitron text-xs text-scifi-cyan mb-3 tracking-widest border-b border-scifi-cyan/20 pb-1">物理常数 (PHYSICS_CONSTANTS)</h3>
+                    <div class="mb-1 flex justify-between font-mono text-[10px] text-gray-400">
+                        <span>万有引力常数 [G]</span>
+                        <span id="valG" class="text-white">1.0</span>
+                    </div>
+                    <input type="range" id="sliderG" min="0.1" max="5" step="0.1" value="1">
+                </div>
+
+                <!-- 视觉渲染开关 -->
+                <div>
+                    <h3 class="font-orbitron text-xs text-scifi-cyan mb-2 tracking-widest border-b border-scifi-cyan/20 pb-1">渲染设置 (RENDER_SETTINGS)</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnTrails" class="tech-btn active py-1.5 text-[10px]"><i class="fa-solid fa-route"></i> 显示轨道</button>
+                        <button id="btnGrid" class="tech-btn active py-1.5 text-[10px]"><i class="fa-solid fa-border-all"></i> 空间网格</button>
+                        <button id="btnLabels" class="tech-btn py-1.5 text-[10px]"><i class="fa-solid fa-tag"></i> HUD标签</button>
+                    </div>
+                </div>
+
+                <!-- 场景快照 -->
+                <div>
+                    <h3 class="font-orbitron text-xs text-scifi-cyan mb-2 tracking-widest border-b border-scifi-cyan/20 pb-1">预设场景 (SCENARIOS)</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="btn-preset tech-btn py-2 text-[10px]" data-preset="solar">太阳系 (简化)</button>
+                        <button class="btn-preset tech-btn py-2 text-[10px]" data-preset="threeBody">三体系统</button>
+                        <button class="btn-preset tech-btn py-2 text-[10px]" data-preset="binary">双星系统</button>
+                        <button class="btn-preset tech-btn py-2 text-[10px]" data-preset="cluster">星团碰撞</button>
+                    </div>
+                </div>
+
+                <!-- 危险指令 -->
+                <div class="mt-auto pt-4 border-t border-gray-800">
+                    <button id="btnAddRandom" class="tech-btn w-full py-2 mb-2 text-xs">
+                        <i class="fa-solid fa-satellite"></i> 注入随机天体
+                    </button>
+                    <button id="btnClear" class="tech-btn tech-btn-warn w-full py-2 text-xs">
+                        <i class="fa-solid fa-skull"></i> 湮灭当前系统
+                    </button>
+                </div>
+            </aside>
+        </main>
     </div>
 
-    <!-- 底部状态栏 -->
-    <footer class="absolute bottom-0 left-0 w-full glass-panel px-4 py-1.5 flex justify-between items-center z-10 text-xs text-gray-400 pointer-events-none">
-        <div class="flex gap-4">
-            <span>天体数量: <strong id="statCount" class="text-white font-normal">0</strong></span>
-            <span>FPS: <strong id="statFps" class="text-white font-normal">60</strong></span>
+    <!-- 准星装饰 (仅装饰) -->
+    <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
+        <div class="w-96 h-96 border border-scifi-cyan rounded-full relative">
+            <div class="absolute top-1/2 left-0 w-full h-[1px] bg-scifi-cyan"></div>
+            <div class="absolute left-1/2 top-0 w-[1px] h-full bg-scifi-cyan"></div>
         </div>
-        <div>
-            <span>模拟时间: <strong id="statTime" class="text-white font-normal">0.0 纪元</strong></span>
-        </div>
-    </footer>
+    </div>
 
     <script>
         // --- 系统变量初始化 ---
         const canvas = document.getElementById('simCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); // 优化性能
+        const ctx = canvas.getContext('2d', { alpha: false }); 
         
         let width, height;
-        let bgCanvas, bgCtx; // 离屏背景层
+        let bgCanvas, bgCtx; 
         
         let bodies = [];
-        let G = 1.0;          // 引力常数
-        let timeScale = 1.0;  // 时间流速
+        let G = 1.0;          
+        let timeScale = 1.0;  
         let isPaused = false;
         let showTrails = true;
         let showLabels = false;
+        let showGrid = true;
         let simTime = 0;
         
-        // 摄像机
         let camera = { x: 0, y: 0, zoom: 1 };
         
-        // 交互状态
         let isDraggingRight = false;
         let isCreatingBody = false;
         let lastMouse = { x: 0, y: 0 };
         let createStartPos = { x: 0, y: 0 };
         let currentMouseWorld = { x: 0, y: 0 };
         let selectedBody = null;
-        let bgRotation = 0; // 背景缓慢旋转
+        let bgRotation = 0; 
 
-        // 颜色预设 (深邃宇宙风格)
+        // 科幻系颜色预设 (冰蓝、霓虹青、亮白、金橙)
         const colors = [
-            '#ffffff', '#fdf4dc', '#fdeab0', // 白/黄白
-            '#e2ebff', '#b5cfff',            // 蓝白/亮蓝
-            '#ffd2a1', '#ffb085'             // 橙白/淡红
+            '#ffffff', '#e0f7fa', '#b2ebf2', 
+            '#80deea', '#4dd0e1', '#26c6da',
+            '#ffd54f', '#ffb74d'             
         ];
+
+        // 生成唯一ID
+        function genId() { return Math.random().toString(16).substr(2, 6).toUpperCase(); }
 
         // --- 类定义 ---
         class Body {
-            constructor(x, y, vx, vy, mass, color) {
+            constructor(x, y, vx, vy, mass, color, name) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
                 this.vy = vy;
                 this.mass = mass;
-                // 半径与质量的三次方根成正比 (模拟体积)
                 this.radius = Math.max(2, Math.pow(mass, 1/3) * 2);
                 this.color = color || colors[Math.floor(Math.random() * colors.length)];
                 this.trail = [];
-                this.trailMaxLength = 150;
-                this.flash = 0; // 碰撞闪光效果计时
-                this.id = Math.random().toString(36).substr(2, 9);
+                this.trailMaxLength = 200; // 延长轨迹以配合科幻感
+                this.flash = 0; 
+                this.uid = "OBJ-" + genId();
+                this.name = name || (this.mass > 500 ? "未知恒星" : "未知行星") + "-" + this.uid.substr(4, 2);
             }
 
             update(dt) {
@@ -234,13 +353,12 @@
                 this.y += this.vy * dt;
 
                 if (showTrails) {
-                    // 每隔一段距离记录一次轨迹以节省性能
                     if (this.trail.length === 0) {
                         this.trail.push({ x: this.x, y: this.y });
                     } else {
                         const last = this.trail[this.trail.length - 1];
                         const dist = Math.hypot(this.x - last.x, this.y - last.y);
-                        if (dist > 3) {
+                        if (dist > 2) { // 提高采样率
                             this.trail.push({ x: this.x, y: this.y });
                             if (this.trail.length > this.trailMaxLength) {
                                 this.trail.shift();
@@ -248,12 +366,11 @@
                         }
                     }
                 }
-
                 if (this.flash > 0) this.flash -= dt * 2;
             }
 
             draw(ctx) {
-                // 绘制轨迹
+                // 绘制科幻风格轨迹 (发光渐变)
                 if (showTrails && this.trail.length > 1) {
                     ctx.beginPath();
                     ctx.moveTo(this.trail[0].x, this.trail[0].y);
@@ -261,46 +378,67 @@
                         ctx.lineTo(this.trail[i].x, this.trail[i].y);
                     }
                     ctx.strokeStyle = this.color;
-                    ctx.lineWidth = Math.max(0.5, this.radius / 5);
-                    // 轨迹渐变透明
-                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = Math.max(0.5, this.radius / 6);
+                    ctx.globalAlpha = 0.4;
                     ctx.stroke();
                     ctx.globalAlpha = 1.0;
                 }
 
-                // 绘制天体发光
+                // 实体与泛光
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
-                
-                // 外发光效果
-                ctx.shadowBlur = this.radius * 4;
+                ctx.shadowBlur = this.radius * 3;
                 ctx.shadowColor = this.color;
                 ctx.fill();
-                ctx.shadowBlur = 0; // 重置
+                ctx.shadowBlur = 0; 
 
-                // 碰撞闪光
+                // 碰撞高能反应 (闪白)
                 if (this.flash > 0) {
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.radius * (1 + this.flash * 2), 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, this.radius * (1 + this.flash * 3), 0, Math.PI * 2);
                     ctx.fillStyle = `rgba(255, 255, 255, ${this.flash})`;
                     ctx.fill();
                 }
 
-                // 标签
+                // 遥测HUD标签与选中框
                 if (showLabels || selectedBody === this) {
-                    ctx.fillStyle = selectedBody === this ? '#ffffff' : '#aaaaaa';
-                    ctx.font = `${10/camera.zoom}px Inter`;
-                    ctx.fillText(`${Math.round(this.mass)}M`, this.x + this.radius + 5, this.y - 5);
-                    
-                    // 选中环
+                    // 战术锁定框
                     if (selectedBody === this) {
+                        const s = this.radius + 10/camera.zoom;
+                        ctx.strokeStyle = '#00f0ff';
+                        ctx.lineWidth = 1.5/camera.zoom;
+                        // 画四个角落的锁定标线
                         ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.radius + 6/camera.zoom, 0, Math.PI * 2);
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                        ctx.moveTo(this.x - s, this.y - s + 5/camera.zoom); ctx.lineTo(this.x - s, this.y - s); ctx.lineTo(this.x - s + 5/camera.zoom, this.y - s);
+                        ctx.moveTo(this.x + s, this.y - s + 5/camera.zoom); ctx.lineTo(this.x + s, this.y - s); ctx.lineTo(this.x + s - 5/camera.zoom, this.y - s);
+                        ctx.moveTo(this.x - s, this.y + s - 5/camera.zoom); ctx.lineTo(this.x - s, this.y + s); ctx.lineTo(this.x - s + 5/camera.zoom, this.y + s);
+                        ctx.moveTo(this.x + s, this.y + s - 5/camera.zoom); ctx.lineTo(this.x + s, this.y + s); ctx.lineTo(this.x + s - 5/camera.zoom, this.y + s);
+                        ctx.stroke();
+                        
+                        // 绘制到旁边的数据引线
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + s, this.y);
+                        ctx.lineTo(this.x + s + 20/camera.zoom, this.y - 20/camera.zoom);
+                        ctx.lineTo(this.x + s + 50/camera.zoom, this.y - 20/camera.zoom);
+                        ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
                         ctx.lineWidth = 1/camera.zoom;
                         ctx.stroke();
+                        
+                        ctx.fillStyle = '#00f0ff';
+                    } else {
+                        ctx.fillStyle = '#999999';
                     }
+                    
+                    ctx.font = `${11/camera.zoom}px 'JetBrains Mono', 'Noto Sans SC', sans-serif`;
+                    const labelX = selectedBody === this ? this.x + this.radius + 30/camera.zoom : this.x + this.radius + 5;
+                    const labelY = selectedBody === this ? this.y - 25/camera.zoom : this.y - 10;
+                    
+                    // 绘制名称和质量
+                    ctx.fillText(this.name, labelX, labelY);
+                    ctx.fillStyle = selectedBody === this ? '#ffffff' : '#666666';
+                    ctx.font = `${9/camera.zoom}px 'JetBrains Mono', sans-serif`;
+                    ctx.fillText(`质量: ${Math.round(this.mass)} M`, labelX, labelY + 12/camera.zoom);
                 }
             }
         }
@@ -309,90 +447,87 @@
         function resizeCanvas() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
-            generateStarfield(); // 窗口改变时重新生成背景
+            generateStarfield(); 
         }
         window.addEventListener('resize', resizeCanvas);
 
-        // 生成深邃风格星云背景 (离屏Canvas渲染一次，提升性能)
+        // 生成宇宙底噪背景
         function generateStarfield() {
             bgCanvas = document.createElement('canvas');
-            // 为了允许平移时不漏出黑边，背景绘制的大一些
             bgCanvas.width = width * 3; 
             bgCanvas.height = height * 3;
             bgCtx = bgCanvas.getContext('2d');
             
-            // 底色 - 纯黑
-            bgCtx.fillStyle = '#030304';
+            // 深邃深蓝黑底色
+            bgCtx.fillStyle = '#03050a';
             bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
 
-            // 绘制银河尘埃云 (深棕色/灰色混合)
-            const cx = bgCanvas.width / 2;
-            const cy = bgCanvas.height / 2;
-
-            bgCtx.globalCompositeOperation = 'screen';
-            for (let i = 0; i < 200; i++) {
-                let x = cx + (Math.random() - 0.5) * bgCanvas.width * 0.8;
-                let y = cy + (Math.random() - 0.5) * bgCanvas.height * 0.8;
-                
-                // 将云聚集在对角线上以模拟银河带
-                y = cy + (x - cx) * 0.6 + (Math.random() - 0.5) * 600;
-
-                let r = Math.random() * 200 + 50;
-                let gradient = bgCtx.createRadialGradient(x, y, 0, x, y, r);
-                
-                // 尘埃颜色 (棕、暗红、灰、暗蓝)
-                const dustColors = [
-                    'rgba(60, 40, 30, 0.05)',
-                    'rgba(40, 45, 55, 0.04)',
-                    'rgba(80, 50, 40, 0.03)',
-                    'rgba(30, 30, 40, 0.06)'
-                ];
-                let color = dustColors[Math.floor(Math.random() * dustColors.length)];
-                
-                gradient.addColorStop(0, color);
-                gradient.addColorStop(1, 'rgba(0,0,0,0)');
-                
-                bgCtx.fillStyle = gradient;
-                bgCtx.beginPath();
-                bgCtx.arc(x, y, r, 0, Math.PI * 2);
-                bgCtx.fill();
-            }
-
-            // 绘制繁星
+            // 暗淡星空噪点
             for (let i = 0; i < 2000; i++) {
                 let x = Math.random() * bgCanvas.width;
                 let y = Math.random() * bgCanvas.height;
-                let size = Math.random() < 0.95 ? Math.random() * 1.5 : Math.random() * 3 + 1;
-                let opacity = Math.random() * 0.8 + 0.2;
+                let size = Math.random() * 1.5;
+                let opacity = Math.random() * 0.5 + 0.1;
                 
-                bgCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-                if(Math.random() > 0.8) bgCtx.fillStyle = `rgba(255, 230, 200, ${opacity})`; // 少许黄星
-                if(Math.random() > 0.9) bgCtx.fillStyle = `rgba(200, 220, 255, ${opacity})`; // 少许蓝星
-
+                bgCtx.fillStyle = `rgba(200, 240, 255, ${opacity})`;
                 bgCtx.beginPath();
                 bgCtx.arc(x, y, size, 0, Math.PI * 2);
                 bgCtx.fill();
-
-                // 亮星添加光晕
-                if (size > 2.5) {
-                    let glow = bgCtx.createRadialGradient(x, y, 0, x, y, size * 4);
-                    glow.addColorStop(0, 'rgba(255,255,255,0.2)');
-                    glow.addColorStop(1, 'rgba(255,255,255,0)');
-                    bgCtx.fillStyle = glow;
-                    bgCtx.beginPath();
-                    bgCtx.arc(x, y, size * 4, 0, Math.PI * 2);
-                    bgCtx.fill();
-                }
             }
-            bgCtx.globalCompositeOperation = 'source-over';
+        }
+
+        // 绘制坐标系网格 (新增科幻感元素)
+        function drawGrid(ctx) {
+            if (!showGrid) return;
+            
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
+            ctx.lineWidth = 1 / camera.zoom;
+            
+            // 计算网格间距 (根据缩放动态调整)
+            let baseStep = 100;
+            let step = baseStep;
+            if (camera.zoom < 0.2) step = baseStep * 5;
+            else if (camera.zoom > 2) step = baseStep / 2;
+
+            // 获取视口在世界坐标系中的范围
+            let left = (-width/2) / camera.zoom + camera.x;
+            let right = (width/2) / camera.zoom + camera.x;
+            let top = (-height/2) / camera.zoom + camera.y;
+            let bottom = (height/2) / camera.zoom + camera.y;
+
+            // 对齐到网格步长
+            let startX = Math.floor(left / step) * step;
+            let startY = Math.floor(top / step) * step;
+
+            ctx.beginPath();
+            // 垂直线
+            for (let x = startX; x < right; x += step) {
+                ctx.moveTo(x, top);
+                ctx.lineTo(x, bottom);
+            }
+            // 水平线
+            for (let y = startY; y < bottom; y += step) {
+                ctx.moveTo(left, y);
+                ctx.lineTo(right, y);
+            }
+            ctx.stroke();
+            
+            // 绘制原点坐标轴十字
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+            ctx.lineWidth = 2 / camera.zoom;
+            ctx.beginPath();
+            ctx.moveTo(-10000, 0); ctx.lineTo(10000, 0);
+            ctx.moveTo(0, -10000); ctx.lineTo(0, 10000);
+            ctx.stroke();
+
+            ctx.restore();
         }
 
         // --- 物理引擎 ---
         function updatePhysics(dt) {
-            // 限制单步最大时间，防止穿模过分
             const stepDt = Math.min(dt * timeScale * 0.05, 0.5); 
 
-            // 计算引力
             for (let i = 0; i < bodies.length; i++) {
                 for (let j = i + 1; j < bodies.length; j++) {
                     let b1 = bodies[i];
@@ -403,14 +538,12 @@
                     let distSq = dx * dx + dy * dy;
                     let dist = Math.sqrt(distSq);
 
-                    // 碰撞检测与合并
+                    // 碰撞融合
                     if (dist < b1.radius + b2.radius) {
-                        // 动量守恒 m1v1 + m2v2 = (m1+m2)v
                         let newMass = b1.mass + b2.mass;
                         let newVx = (b1.vx * b1.mass + b2.vx * b2.mass) / newMass;
                         let newVy = (b1.vy * b1.mass + b2.vy * b2.mass) / newMass;
                         
-                        // 保留质量大者的颜色和位置基础
                         let primary = b1.mass >= b2.mass ? b1 : b2;
                         let secondary = b1.mass < b2.mass ? b1 : b2;
 
@@ -418,23 +551,17 @@
                         primary.vx = newVx;
                         primary.vy = newVy;
                         primary.radius = Math.max(2, Math.pow(newMass, 1/3) * 2);
-                        primary.flash = 1.0; // 触发闪光
+                        primary.flash = 1.0; 
 
-                        // 如果被选中的是被吃掉的，更新选中状态
                         if(selectedBody === secondary) selectedBody = primary;
 
-                        // 移除小天体
                         bodies.splice(bodies.indexOf(secondary), 1);
-                        
-                        // 由于数组长度变化，调整循环变量以防跳过元素
                         j--;
                         continue;
                     }
 
-                    // F = G * (m1 * m2) / r^2
-                    // 加入软化因子防止极近距离受力无穷大
+                    // 引力计算 (含软化)
                     let force = (G * b1.mass * b2.mass) / (distSq + 10); 
-                    
                     let ax = (force * dx) / dist;
                     let ay = (force * dy) / dist;
 
@@ -445,7 +572,6 @@
                 }
             }
 
-            // 更新位置
             bodies.forEach(b => b.update(stepDt));
             simTime += stepDt;
         }
@@ -460,7 +586,6 @@
             let dt = time - lastTime;
             lastTime = time;
 
-            // FPS 计算
             frameCount++;
             if (time - lastFpsTime >= 1000) {
                 currentFps = frameCount;
@@ -471,57 +596,63 @@
 
             if (!isPaused) {
                 updatePhysics(dt);
-                document.getElementById('statTime').innerText = (simTime / 100).toFixed(1) + ' 纪元';
+                document.getElementById('statTime').innerText = (simTime / 100).toFixed(2);
             }
 
             // 清屏
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, width, height);
 
-            // 绘制缓慢旋转的背景
-            bgRotation += 0.0001; // 极缓旋转体现宁静感
-            ctx.save();
-            ctx.translate(width/2, height/2);
-            ctx.rotate(bgRotation);
-            // 考虑摄像机平移和缩放产生的背景位移 (视差效果，背景移动慢)
-            let parallaxX = -camera.x * 0.1;
-            let parallaxY = -camera.y * 0.1;
-            // 因为背景图很大，绘制起点要在中心偏外
+            // 绘制底噪星空视差层
             if(bgCanvas) {
-                ctx.drawImage(bgCanvas, -bgCanvas.width/2 + parallaxX, -bgCanvas.height/2 + parallaxY);
+                let parallaxX = -camera.x * 0.05;
+                let parallaxY = -camera.y * 0.05;
+                ctx.drawImage(bgCanvas, -bgCanvas.width/2 + parallaxX + width/2, -bgCanvas.height/2 + parallaxY + height/2);
             }
-            ctx.restore();
 
-            // 摄像机变换 applied to entities
+            // 摄像机矩阵
             ctx.save();
-            ctx.translate(width / 2, height / 2); // 屏幕中心为基准
+            ctx.translate(width / 2, height / 2);
             ctx.scale(camera.zoom, camera.zoom);
-            ctx.translate(-camera.x, -camera.y);  // 移动到摄像机位置
+            ctx.translate(-camera.x, -camera.y); 
+
+            // 绘制空间网格
+            drawGrid(ctx);
 
             // 渲染天体
             bodies.forEach(b => b.draw(ctx));
 
-            // 渲染正在创建的天体连线 (表示初始速度矢量)
+            // 绘制发射预测线 (战术质感虚线)
             if (isCreatingBody) {
                 ctx.beginPath();
                 ctx.moveTo(createStartPos.x, createStartPos.y);
                 ctx.lineTo(currentMouseWorld.x, currentMouseWorld.y);
-                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#00f0ff';
+                ctx.setLineDash([10/camera.zoom, 10/camera.zoom]);
                 ctx.lineWidth = 1/camera.zoom;
                 ctx.stroke();
                 ctx.setLineDash([]);
-
-                // 预览星球起点
+                
+                // 起点光晕
                 ctx.beginPath();
-                ctx.arc(createStartPos.x, createStartPos.y, 5/camera.zoom, 0, Math.PI*2);
-                ctx.fillStyle = 'white';
+                ctx.arc(createStartPos.x, createStartPos.y, 4/camera.zoom, 0, Math.PI*2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(createStartPos.x, createStartPos.y, 10/camera.zoom, 0, Math.PI*2);
+                ctx.strokeStyle = '#00f0ff';
+                ctx.stroke();
+                
+                // 终点箭头
+                ctx.beginPath();
+                ctx.arc(currentMouseWorld.x, currentMouseWorld.y, 2/camera.zoom, 0, Math.PI*2);
+                ctx.fillStyle = '#00f0ff';
                 ctx.fill();
             }
 
             ctx.restore();
 
-            // 更新信息面板
+            // 更新仪表盘
             updateInfoPanel();
             document.getElementById('statCount').innerText = bodies.length;
 
@@ -536,19 +667,18 @@
             };
         }
 
-        // --- 事件监听 (交互) ---
+        // --- 交互事件 ---
         canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 2) { // 右键平移
+            if (e.button === 2) {
                 isDraggingRight = true;
                 lastMouse = { x: e.clientX, y: e.clientY };
-            } else if (e.button === 0) { // 左键选择或创建
+            } else if (e.button === 0) {
                 let worldPos = screenToWorld(e.clientX, e.clientY);
                 
-                // 检查是否点击了天体
                 let clickedBody = null;
                 for (let b of bodies) {
                     let dist = Math.hypot(b.x - worldPos.x, b.y - worldPos.y);
-                    if (dist < b.radius + 10 / camera.zoom) { // 给一点点击宽容度
+                    if (dist < b.radius + 15 / camera.zoom) {
                         clickedBody = b;
                         break;
                     }
@@ -556,13 +686,16 @@
 
                 if (clickedBody) {
                     selectedBody = clickedBody;
-                    document.getElementById('infoPanel').classList.remove('hidden');
-                    setTimeout(() => document.getElementById('infoPanel').classList.remove('opacity-0'), 10);
+                    const panel = document.getElementById('infoPanel');
+                    panel.classList.remove('hidden');
+                    setTimeout(() => {
+                        panel.classList.remove('opacity-0', 'translate-y-4');
+                    }, 10);
                 } else {
-                    // 开始创建新天体
                     selectedBody = null;
-                    document.getElementById('infoPanel').classList.add('opacity-0');
-                    setTimeout(() => document.getElementById('infoPanel').classList.add('hidden'), 300);
+                    const panel = document.getElementById('infoPanel');
+                    panel.classList.add('opacity-0', 'translate-y-4');
+                    setTimeout(() => panel.classList.add('hidden'), 300);
                     
                     isCreatingBody = true;
                     createStartPos = worldPos;
@@ -590,54 +723,41 @@
             } else if (e.button === 0 && isCreatingBody) {
                 isCreatingBody = false;
                 let endPos = screenToWorld(e.clientX, e.clientY);
-                // 速度基于拖拽距离和方向 (相反方向发射)
                 let vx = (createStartPos.x - endPos.x) * 0.05;
                 let vy = (createStartPos.y - endPos.y) * 0.05;
-                // 质量随机 10 - 200
                 let mass = Math.random() * 190 + 10;
                 bodies.push(new Body(createStartPos.x, createStartPos.y, vx, vy, mass));
             }
         });
 
-        // 禁用右键菜单
         canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-        // 滚轮缩放
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomAmount = 0.1;
-            const oldZoom = camera.zoom;
             
-            if (e.deltaY < 0) {
-                camera.zoom *= (1 + zoomAmount);
-            } else {
-                camera.zoom *= (1 - zoomAmount);
-            }
-            // 限制缩放级别
+            if (e.deltaY < 0) camera.zoom *= (1 + zoomAmount);
+            else camera.zoom *= (1 - zoomAmount);
+            
             camera.zoom = Math.max(0.05, Math.min(camera.zoom, 10));
 
-            // 缩放到鼠标位置
             const mouseWorldBefore = screenToWorld(e.clientX, e.clientY);
             camera.x += mouseWorldBefore.x - ((e.clientX - width / 2) / camera.zoom + camera.x);
             camera.y += mouseWorldBefore.y - ((e.clientY - height / 2) / camera.zoom + camera.y);
-
         }, { passive: false });
 
 
-        // --- UI 控制 ---
+        // --- UI 控制绑定 ---
         document.getElementById('btnPlay').addEventListener('click', function() {
             isPaused = !isPaused;
-            this.innerHTML = isPaused ? '<i class="fa-solid fa-play"></i> 播放' : '<i class="fa-solid fa-pause"></i> 暂停';
-            this.classList.toggle('text-yellow-400', isPaused);
-        });
-
-        document.getElementById('btnReset').addEventListener('click', () => {
-            loadPreset('solar');
-            camera = { x: 0, y: 0, zoom: 1 };
-            simTime = 0;
-            isPaused = false;
-            document.getElementById('btnPlay').innerHTML = '<i class="fa-solid fa-pause"></i> 暂停';
-            document.getElementById('btnPlay').classList.remove('text-yellow-400');
+            if (isPaused) {
+                this.innerHTML = '<i class="fa-solid fa-play"></i> 恢复推演';
+                this.classList.add('text-scifi-cyan');
+                this.classList.remove('text-white');
+            } else {
+                this.innerHTML = '<i class="fa-solid fa-pause"></i> 暂停推演';
+                this.classList.remove('text-scifi-cyan');
+            }
         });
 
         document.getElementById('sliderTime').addEventListener('input', (e) => {
@@ -647,24 +767,28 @@
 
         document.getElementById('sliderG').addEventListener('input', (e) => {
             G = parseFloat(e.target.value);
-            document.getElementById('valG').innerText = G.toFixed(1);
+            document.getElementById('valG').innerText = G.toFixed(2);
         });
 
         document.getElementById('btnTrails').addEventListener('click', function() {
             showTrails = !showTrails;
-            this.classList.toggle('btn-active');
-            if(!showTrails) bodies.forEach(b => b.trail = []); // 清理旧轨迹
+            this.classList.toggle('active');
+            if(!showTrails) bodies.forEach(b => b.trail = []); 
+        });
+
+        document.getElementById('btnGrid').addEventListener('click', function() {
+            showGrid = !showGrid;
+            this.classList.toggle('active');
         });
 
         document.getElementById('btnLabels').addEventListener('click', function() {
             showLabels = !showLabels;
-            this.classList.toggle('btn-active');
+            this.classList.toggle('active');
         });
 
         document.getElementById('btnAddRandom').addEventListener('click', () => {
             let angle = Math.random() * Math.PI * 2;
             let dist = Math.random() * 400;
-            // 在视区中心附近生成
             let x = camera.x + Math.cos(angle) * dist;
             let y = camera.y + Math.sin(angle) * dist;
             let vx = (Math.random() - 0.5) * 5;
@@ -676,16 +800,16 @@
         document.getElementById('btnClear').addEventListener('click', () => {
             bodies = [];
             selectedBody = null;
-            document.getElementById('infoPanel').classList.add('opacity-0');
+            document.getElementById('infoPanel').classList.add('opacity-0', 'translate-y-4');
+            simTime = 0;
         });
 
         document.getElementById('btnCloseInfo').addEventListener('click', () => {
             selectedBody = null;
-            document.getElementById('infoPanel').classList.add('opacity-0');
+            document.getElementById('infoPanel').classList.add('opacity-0', 'translate-y-4');
             setTimeout(() => document.getElementById('infoPanel').classList.add('hidden'), 300);
         });
 
-        // 预设按钮
         document.querySelectorAll('.btn-preset').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 loadPreset(e.target.dataset.preset);
@@ -697,75 +821,73 @@
         function updateInfoPanel() {
             if (!selectedBody || bodies.indexOf(selectedBody) === -1) {
                 if(selectedBody) {
-                    // 如果被选中天体被吞噬
-                    document.getElementById('infoPanel').classList.add('opacity-0');
+                    document.getElementById('infoPanel').classList.add('opacity-0', 'translate-y-4');
                     selectedBody = null;
                 }
                 return;
             }
-            document.getElementById('infoMass').innerText = selectedBody.mass.toFixed(1);
-            document.getElementById('infoRadius').innerText = selectedBody.radius.toFixed(1);
-            let vel = Math.hypot(selectedBody.vx, selectedBody.vy).toFixed(2);
-            document.getElementById('infoVel').innerText = vel;
-            document.getElementById('infoPos').innerText = `${selectedBody.x.toFixed(0)}, ${selectedBody.y.toFixed(0)}`;
+            // 实时遥测数据跳动感
+            document.getElementById('infoName').innerText = selectedBody.name;
+            document.getElementById('infoMass').innerText = selectedBody.mass.toFixed(2);
+            document.getElementById('infoRadius').innerText = selectedBody.radius.toFixed(2);
+            
+            let vel = Math.hypot(selectedBody.vx, selectedBody.vy);
+            document.getElementById('infoVel').innerText = vel.toFixed(3);
+            
+            // 速度条可视化
+            let velPercent = Math.min(100, (vel / 10) * 100); 
+            document.getElementById('velBar').style.width = `${velPercent}%`;
+            
+            document.getElementById('infoPos').innerText = `${selectedBody.x.toFixed(1)}, ${selectedBody.y.toFixed(1)}`;
+            document.getElementById('infoUid').innerText = selectedBody.uid;
         }
 
 
-        // --- 预设场景库 ---
+        // --- 科幻预设库 ---
         function loadPreset(name) {
             bodies = [];
             switch(name) {
                 case 'solar':
-                    // 太阳
-                    bodies.push(new Body(0, 0, 0, 0, 3000, '#fff4e6'));
-                    // 地球
-                    bodies.push(new Body(300, 0, 0, 3.16, 50, '#b5cfff'));
-                    // 火星
-                    bodies.push(new Body(450, 0, 0, 2.58, 25, '#ffb085'));
-                    // 金星 (轨道较近)
-                    bodies.push(new Body(180, 0, 0, 4.08, 45, '#fdeab0'));
+                    // 太阳系简化模型
+                    bodies.push(new Body(0, 0, 0, 0, 3000, '#fff4e6', '太阳 (主序星)'));
+                    bodies.push(new Body(300, 0, 0, 3.16, 50, '#00f0ff', '地球 (宜居带行星)'));
+                    bodies.push(new Body(450, 0, 0, 2.58, 25, '#ff4757', '火星 (荒漠行星)'));
+                    bodies.push(new Body(180, 0, 0, 4.08, 45, '#eccc68', '金星 (温室行星)'));
                     break;
                 case 'threeBody':
                     // 经典的8字形三体解初始条件
-                    let p1 = 150;
-                    let v1 = 0.5;
-                    bodies.push(new Body(p1, p1/2, -v1, v1/2, 200, '#ffffff'));
-                    bodies.push(new Body(-p1, -p1/2, -v1, v1/2, 200, '#ffccaa'));
-                    bodies.push(new Body(0, 0, v1*2, -v1, 200, '#aaccff'));
+                    let p1 = 150; let v1 = 0.5;
+                    bodies.push(new Body(p1, p1/2, -v1, v1/2, 200, '#00f0ff', '半人马座α星A'));
+                    bodies.push(new Body(-p1, -p1/2, -v1, v1/2, 200, '#ff4757', '半人马座α星B'));
+                    bodies.push(new Body(0, 0, v1*2, -v1, 200, '#ffffff', '比邻星 (红矮星)'));
                     break;
                 case 'binary':
-                    // 双星系统与环绕行星
-                    bodies.push(new Body(-80, 0, 0, -1.5, 800, '#ffb085'));
-                    bodies.push(new Body(80, 0, 0, 1.5, 800, '#b5cfff'));
-                    // 远处环绕两颗恒星的行星
-                    bodies.push(new Body(500, 0, 0, 1.8, 10, '#ffffff'));
-                    bodies.push(new Body(600, 0, 0, 1.6, 20, '#fdeab0'));
+                    // 双星系统
+                    bodies.push(new Body(-80, 0, 0, -1.5, 800, '#ff4757', '主星 (红超巨星)'));
+                    bodies.push(new Body(80, 0, 0, 1.5, 800, '#00f0ff', '伴星 (蓝巨星)'));
+                    bodies.push(new Body(500, 0, 0, 1.8, 10, '#ffffff', '环联星行星'));
                     break;
                 case 'cluster':
-                    // 星团 (随机均匀分布，向中心收缩)
+                    // 星团碰撞
                     for(let i=0; i<40; i++) {
                         let angle = Math.random() * Math.PI * 2;
                         let r = Math.random() * 400 + 100;
                         let x = Math.cos(angle) * r;
                         let y = Math.sin(angle) * r;
-                        // 给轻微的切向速度形成旋转
                         let vx = -Math.sin(angle) * 1.5;
                         let vy = Math.cos(angle) * 1.5;
-                        bodies.push(new Body(x, y, vx, vy, Math.random()*30+5));
+                        bodies.push(new Body(x, y, vx, vy, Math.random()*30+5, null, `游荡星体-${i+1}`));
                     }
-                    // 中心巨大黑洞/恒星
-                    bodies.push(new Body(0,0,0,0, 1500, '#ffffff'));
+                    bodies.push(new Body(0,0,0,0, 2000, '#7efff5', '超大质量黑洞'));
                     break;
             }
         }
 
-        // 启动初始化
         window.onload = function() {
             resizeCanvas();
             loadPreset('solar');
             requestAnimationFrame(render);
         };
-
     </script>
 </body>
 </html>
