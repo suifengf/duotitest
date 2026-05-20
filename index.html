@@ -333,7 +333,7 @@
 
         // --- 类定义 ---
         class Body {
-            constructor(x, y, vx, vy, mass, color, name) {
+            constructor(x, y, vx, vy, mass, color, name, type) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
@@ -341,11 +341,19 @@
                 this.mass = mass;
                 this.radius = Math.max(2, Math.pow(mass, 1/3) * 2);
                 this.color = color || colors[Math.floor(Math.random() * colors.length)];
+                this.type = type || 'generic'; // 新增天体类型
                 this.trail = [];
                 this.trailMaxLength = 200; // 延长轨迹以配合科幻感
                 this.flash = 0; 
                 this.uid = "OBJ-" + genId();
-                this.name = name || (this.mass > 500 ? "未知恒星" : "未知行星") + "-" + this.uid.substr(4, 2);
+                
+                // 智能命名
+                if (name) {
+                    this.name = name;
+                } else {
+                    let prefix = this.mass > 500 ? "🌟 未知恒星" : "🪐 未知行星";
+                    this.name = prefix + "-" + this.uid.substr(4, 2);
+                }
             }
 
             update(dt) {
@@ -384,14 +392,79 @@
                     ctx.globalAlpha = 1.0;
                 }
 
-                // 实体与泛光
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = this.radius * 3;
-                ctx.shadowColor = this.color;
-                ctx.fill();
-                ctx.shadowBlur = 0; 
+                // 实体与具象化纹理渲染 (根据天体类型)
+                if (this.type === 'sun') {
+                    // 恒星：动态呼吸日冕与光晕
+                    let pulse = Math.sin(Date.now() / 200) * 0.1 + 1;
+                    let grad = ctx.createRadialGradient(this.x, this.y, this.radius * 0.5, this.x, this.y, this.radius * 3 * pulse);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(0.3, this.color);
+                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 3 * pulse, 0, Math.PI * 2); ctx.fill();
+                    // 恒星实体
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+                    
+                } else if (this.type === 'earth') {
+                    // 地球：海洋蓝底 + 绿色陆地斑块 + 立体大气层
+                    ctx.save();
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#1e90ff'; ctx.fill(); ctx.clip(); // 裁剪为圆形
+                    // 绘制几块随机陆地
+                    ctx.fillStyle = '#2ed573';
+                    ctx.beginPath(); ctx.arc(this.x - this.radius*0.3, this.y - this.radius*0.2, this.radius*0.6, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.x + this.radius*0.4, this.y + this.radius*0.3, this.radius*0.5, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                    // 大气层体积光
+                    let shadow = ctx.createRadialGradient(this.x - this.radius*0.3, this.y - this.radius*0.3, 0, this.x, this.y, this.radius);
+                    shadow.addColorStop(0, 'rgba(255,255,255,0.4)');
+                    shadow.addColorStop(1, 'rgba(0,0,0,0.7)');
+                    ctx.fillStyle = shadow;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+
+                } else if (this.type === 'mars' || this.type === 'venus') {
+                    // 岩石行星 (火星/金星)
+                    ctx.save();
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color; ctx.fill(); ctx.clip();
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; // 地表陨石坑或纹理
+                    ctx.beginPath(); ctx.arc(this.x - this.radius*0.2, this.y + this.radius*0.2, this.radius*0.4, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.x + this.radius*0.3, this.y - this.radius*0.1, this.radius*0.3, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                    let shadow = ctx.createRadialGradient(this.x - this.radius*0.3, this.y - this.radius*0.3, 0, this.x, this.y, this.radius);
+                    shadow.addColorStop(0, 'rgba(255,255,255,0.2)'); shadow.addColorStop(1, 'rgba(0,0,0,0.8)');
+                    ctx.fillStyle = shadow;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+
+                } else if (this.type === 'blackhole') {
+                    // 黑洞：发光吸积盘 + 绝对黑体视界
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(Date.now() / 800); // 吸积盘旋转
+                    let bhGrad = ctx.createRadialGradient(0, 0, this.radius, 0, 0, this.radius * 3.5);
+                    bhGrad.addColorStop(0, 'rgba(0, 240, 255, 0.9)');
+                    bhGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+                    bhGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+                    ctx.fillStyle = bhGrad;
+                    ctx.scale(1, 0.35); // 压扁成椭圆吸积盘
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius * 3.5, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                    // 黑体中心
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 2/camera.zoom; ctx.stroke();
+
+                } else {
+                    // 普通小行星/泛用天体：保持原有的辉光效果
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = this.radius * 2;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                    ctx.shadowBlur = 0; 
+                }
 
                 // 碰撞高能反应 (闪白)
                 if (this.flash > 0) {
@@ -848,27 +921,27 @@
             bodies = [];
             switch(name) {
                 case 'solar':
-                    // 太阳系简化模型
-                    bodies.push(new Body(0, 0, 0, 0, 3000, '#fff4e6', '太阳 (主序星)'));
-                    bodies.push(new Body(300, 0, 0, 3.16, 50, '#00f0ff', '地球 (宜居带行星)'));
-                    bodies.push(new Body(450, 0, 0, 2.58, 25, '#ff4757', '火星 (荒漠行星)'));
-                    bodies.push(new Body(180, 0, 0, 4.08, 45, '#eccc68', '金星 (温室行星)'));
+                    // 太阳系：具备独特的贴图类型
+                    bodies.push(new Body(0, 0, 0, 0, 3000, '#ff9f43', '☀️ 太阳 (主序星)', 'sun'));
+                    bodies.push(new Body(300, 0, 0, 3.16, 50, '#1e90ff', '🌍 地球 (宜居带行星)', 'earth'));
+                    bodies.push(new Body(450, 0, 0, 2.58, 25, '#ff4757', '🔴 火星 (荒漠行星)', 'mars'));
+                    bodies.push(new Body(180, 0, 0, 4.08, 45, '#eccc68', '🌕 金星 (温室行星)', 'venus'));
                     break;
                 case 'threeBody':
-                    // 经典的8字形三体解初始条件
+                    // 三体系统：三颗恒星
                     let p1 = 150; let v1 = 0.5;
-                    bodies.push(new Body(p1, p1/2, -v1, v1/2, 200, '#00f0ff', '半人马座α星A'));
-                    bodies.push(new Body(-p1, -p1/2, -v1, v1/2, 200, '#ff4757', '半人马座α星B'));
-                    bodies.push(new Body(0, 0, v1*2, -v1, 200, '#ffffff', '比邻星 (红矮星)'));
+                    bodies.push(new Body(p1, p1/2, -v1, v1/2, 200, '#00f0ff', '🌟 半人马座α星A', 'sun'));
+                    bodies.push(new Body(-p1, -p1/2, -v1, v1/2, 200, '#ff4757', '🌟 半人马座α星B', 'sun'));
+                    bodies.push(new Body(0, 0, v1*2, -v1, 200, '#ffaa00', '🌟 比邻星 (红矮星)', 'sun'));
                     break;
                 case 'binary':
                     // 双星系统
-                    bodies.push(new Body(-80, 0, 0, -1.5, 800, '#ff4757', '主星 (红超巨星)'));
-                    bodies.push(new Body(80, 0, 0, 1.5, 800, '#00f0ff', '伴星 (蓝巨星)'));
-                    bodies.push(new Body(500, 0, 0, 1.8, 10, '#ffffff', '环联星行星'));
+                    bodies.push(new Body(-80, 0, 0, -1.5, 800, '#ff4757', '🔥 主星 (红超巨星)', 'sun'));
+                    bodies.push(new Body(80, 0, 0, 1.5, 800, '#00f0ff', '☄️ 伴星 (蓝巨星)', 'sun'));
+                    bodies.push(new Body(500, 0, 0, 1.8, 10, '#ffffff', '🪐 环联星行星', 'generic'));
                     break;
                 case 'cluster':
-                    // 星团碰撞
+                    // 星团碰撞：引入超大质量黑洞
                     for(let i=0; i<40; i++) {
                         let angle = Math.random() * Math.PI * 2;
                         let r = Math.random() * 400 + 100;
@@ -876,9 +949,9 @@
                         let y = Math.sin(angle) * r;
                         let vx = -Math.sin(angle) * 1.5;
                         let vy = Math.cos(angle) * 1.5;
-                        bodies.push(new Body(x, y, vx, vy, Math.random()*30+5, null, `游荡星体-${i+1}`));
+                        bodies.push(new Body(x, y, vx, vy, Math.random()*30+5, null, `☄️ 游荡星体-${i+1}`, 'generic'));
                     }
-                    bodies.push(new Body(0,0,0,0, 2000, '#7efff5', '超大质量黑洞'));
+                    bodies.push(new Body(0,0,0,0, 2000, '#7efff5', '🕳️ 超大质量黑洞', 'blackhole'));
                     break;
             }
         }
